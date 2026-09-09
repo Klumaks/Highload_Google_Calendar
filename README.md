@@ -35,42 +35,26 @@
 
 | Метрика | Значение | Период | Источник |
 | :--- | :--- | :--- | :--- |
-| **MAU (Monthly Active Users) Google Calendar** | **500 млн** | 2025–2026 | [1], [2], [3] |
-| **Пользователей Google Workspace** (включая Gmail, Drive, Calendar) | **3 млрд** | 2025 | [1], [4] |
-| **Платящих B2B-компаний Workspace** | **6 млн** | 2025 | [4] |
-| **Событий создаётся в месяц** | **2 млрд** | 2025 | [5] |
-| **Доставка уведомлений в месяц** | **10 млрд** | 2025 | [5] |
-| **Среднее количество устройств на пользователя** | **3–4** | 2025 | [5] |
-| **Компаний из Fortune 500, использующих Google Workspace** | **40%** | 2025 | [4] |
-| **Рынок приложений-календарей** | **$5,71 млрд (2024) → $16,37 млрд (2032)** | Прогноз | [6] |
+| **MAU (Monthly Active Users) Google Calendar** | **500 млн** | 2025–2026 | [1], [2] |
+| **Пользователей Google Workspace** (включая Gmail, Drive, Calendar) | **3 млрд** | 2025 | [1], [2] |
+| **Платящих B2B-компаний Workspace** | **6 млн** | 2025 | [2] |
+| **Событий создаётся в месяц** | **2 млрд** | 2025 | [3] |
+| **Доставка уведомлений в месяц** | **10 млрд** | 2025 | [3] |
+| **Среднее количество устройств на пользователя** | **3–4** | 2025 | [3] |
+| **Компаний из Fortune 500, использующих Google Workspace** | **40%** | 2025 | [2] |
+| **Рынок приложений-календарей** | **$5,71 млрд (2024) → $16,37 млрд (2032)** | Прогноз | [4] |
 
 #### Географическое распространение (2026)
 
-Распределение оценивается по данным о географии клиентов Google Workspace (6sense, 2026 [7]) и региональной структуре рынка (Dataintelo, 2025 [8]):
+Распределение оценивается по данным о географии клиентов Google Workspace (6sense, 2026 [7]) и региональной структуре рынка (Dataintelo, 2025 [5]):
 
-| Регион | Доля рынка | MAU (оценка) | Ключевые страны |
-| :--- | :--- | :--- | :--- |
-| **Северная Америка** | **38,4%** [8] | ~192 млн | США (58,66% B2B-клиентов [7]), Канада |
-| **Европа** | **26,7%** [8] | ~134 млн | UK (7,49% [7]), Германия (5,39% [7]), Франция (5,02% [7]) |
-| **Азиатско-Тихоокеанский регион** | **22,8%** [8] | ~114 млн | Индия (4,69% [7]), Япония, Южная Корея, Австралия |
-| **Латинская Америка + MEA** | **~12%** [8] | ~60 млн | Бразилия (4,46% [7]), Мексика, ОАЭ |
-
-#### Топ-10 стран по количеству B2B-клиентов Google Workspace (2026)
-
-| Страна | Количество компаний | Доля от всех B2B-клиентов |
+| Регион | Доля рынка | MAU (оценка) |
 | :--- | :--- | :--- |
-| США | 828 499 | 58,66% |
-| Великобритания | 105 827 | 7,49% |
-| Германия | 76 063 | 5,39% |
-| Канада | 71 801 | 5,09% |
-| Франция | 70 904 | 5,02% |
-| Индия | 66 257 | 4,69% |
-| Бразилия | 62 983 | 4,46% |
-| Австралия | 52 147 | 3,69% |
-| Нидерланды | 48 923 | 3,46% |
-| Япония | 45 678 | 3,23% |
+| **Северная Америка** | **38,4%** [5] | ~192 млн |
+| **Европа** | **26,7%** [5] | ~134 млн |
+| **Азиатско-Тихоокеанский регион** | **22,8%** [5] | ~114 млн 
+| **Латинская Америка + MEA** | **~12%** [5] | ~60 млн |
 
-*Источник: 6sense, 2026 [7]*
 
 ---
 
@@ -83,8 +67,8 @@
 3. **Управление доступом.** Каждый календарь можно сделать общедоступным либо предоставить отдельным людям доступ к нему (просмотр или редактирование) через приглашение по электронной почте.
 4. **Уведомления.** Отправка уведомлений о предстоящих событиях по электронной почте.
 5. **Управление событиями.** Создание и редактирование событий внутри календарей.
+6. **Поиск по событиям.** Полнотекстовый поиск по названию, описанию, участникам и дате события внутри всех календарей пользователя с фильтрацией по дате и ключевым словам.
 
-#### Ключевые продуктовые решения
 #### Ключевые продуктовые решения
 
 1. **Хранение повторяющихся событий.** Вместо создания тысяч отдельных записей для каждой встречи (например, "планёрка каждый понедельник на год вперёд") в базе данных хранится только одно правило повторения. Конкретные встречи создаются "на лету" при просмотре календаря. Это позволяет экономить огромное количество места и легко редактировать всю серию сразу.
@@ -98,10 +82,7 @@
 ## Список использованных источников
 
 1. Exploding Topics - *Google Workspace User Stats (2025)*. https://explodingtopics.com/blog/google-workspace-stats
-2. Tom's Guide - *Over 500 million Google Calendar users*, 17.03.2026. https://www.tomsguide.com/computing/software/over-500-million-google-calendar-users-just-got-a-major-upgrade-that-solves-the-time-zone-problem
-3. Sectorlink - *The Rise of Google Calendar Spam*, 10.11.2025. https://www.sectorlink.com/article/the-rise-of-google-calendar-malware-and-spam
-4. Patronum - *Key Google Workspace Statistics for 2025*. https://www.patronum.io/key-google-workspace-statistics-for-2023/
-5. Educative.io - *Google Calendar System Design*, 10.03.2026. https://www.educative.io/blog/google-calendar-system-design
-6. Verified Market Research - *Calendar App Market Size And Forecast*, 2025. https://www.verifiedmarketresearch.com/product/calendar-app-market/
-7. 6sense - *Google Workspace Market Share: Customers by Geography*, 2026. https://www.6sense.com/tech/office-suites/google-workspace-market-share
-8. Dataintelo - *Google Workspace Market Regional Outlook 2025–2034*. https://dataintelo.com/report/google-workspace-for-market
+2. Patronum - *Key Google Workspace Statistics for 2025*. https://www.patronum.io/key-google-workspace-statistics-for-2023/
+3. Educative.io - *Google Calendar System Design*, 10.03.2026. https://www.educative.io/blog/google-calendar-system-design
+4. Verified Market Research - *Calendar App Market Size And Forecast*, 2025. https://www.verifiedmarketresearch.com/product/calendar-app-market/
+5. Dataintelo - *Google Workspace Market Regional Outlook 2025–2034*. https://dataintelo.com/report/google-workspace-for-market
