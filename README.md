@@ -425,6 +425,352 @@ L4_i = 2 × ceil(1,3 × B_in,i / 8)
 Итог — предварительно 14 L7 и 8 L4, два пулера отдельно. Производительность подтверждается тестом совместной нагрузки: память, клиентские/upstream-соединения, TLS и сеть; отдельные тесты [8] не измеряют long-polling. Keep-alive и TLS resumption не уменьшают расчёт без измерений, ориентир Maglev не переносится на произвольный L4.
 
 ---
+## 5. Логическая схема базы данных
+
+### 5.1 Схема и описание данных
+
+На схеме показаны данные, необходимые для MVP и API из разделов 1–2, включая служебные наборы, кеш и буферы [13]. Идентификаторы и связи логические; выбор СУБД, индексов и шардинга относится к части 6.
+
+```mermaid
+erDiagram
+    User ||--o{ Calendar : owns
+    User ||--o{ Device : uses
+    User ||--o{ Session : authenticates
+    User ||--o{ CalendarAccess : receives
+    User ||--o{ Event : organizes
+    User o|--o{ EventParticipant : identifies
+    User ||--o{ IdempotencyResult : requests
+
+    Device ||--o{ Session : opens
+    Device ||--o{ SyncCursor : stores
+    Device ||--o{ SyncWait : waits
+    Session ||--o{ SyncWait : authorizes
+
+    Calendar ||--o{ Event : contains
+    Calendar ||--o{ CalendarAccess : grants
+    Calendar ||--o{ CalendarInvitation : invites
+    Calendar ||--o{ CalendarChange : records
+    Calendar ||--o{ SyncCursor : tracks
+
+    Event ||--o{ EventParticipant : includes
+    Event ||--o| RecurrenceRule : repeats
+    RecurrenceRule ||--o{ RecurrenceException : overrides
+    EventParticipant ||--o{ ReminderSchedule : schedules
+    Event ||--o{ NotificationDelivery : generates
+
+    Event ||..o| SearchDocument : projects
+    Event ||..o| EventCache : caches
+
+    NotificationDelivery o|..o| DeliveryTask : delivery_source
+    CalendarInvitation o|..o| DeliveryTask : invitation_source
+
+    User {
+        id user_id PK
+        text email
+        boolean email_verified
+        text password_hash
+        text display_name
+        text timezone
+        text status
+        integer auth_version
+        instant created_at
+    }
+
+    Calendar {
+        id calendar_id PK
+        id owner_id FK
+        text title
+        text description
+        text timezone
+        boolean is_public
+        integer access_version
+        integer change_seq
+        instant updated_at
+    }
+
+    Event {
+        id event_id PK
+        id calendar_id FK
+        id organizer_id FK
+        text title
+        text description
+        text location
+        boolean all_day
+        instant starts_at "nullable"
+        instant ends_at "nullable"
+        date start_date "nullable"
+        date end_date "nullable"
+        text timezone
+        integer version
+        instant created_at
+        instant updated_at
+        instant deleted_at "nullable"
+    }
+
+    RecurrenceRule {
+        id event_id PK, FK
+        text rrule
+        text timezone
+    }
+
+    RecurrenceException {
+        id event_id PK, FK
+        text occurrence_key PK
+        boolean cancelled
+        values override_fields "nullable"
+        instant updated_at
+    }
+
+    Device {
+        id device_id PK
+        id user_id FK
+        text client_type
+        instant last_seen_at
+    }
+
+    CalendarAccess {
+        id calendar_id PK, FK
+        id user_id PK, FK
+        text role
+        instant granted_at
+        instant revoked_at "nullable"
+    }
+
+    EventParticipant {
+        id participant_id PK
+        id event_id FK
+        id user_id FK "nullable"
+        text email
+        text response_status
+        instant responded_at "nullable"
+        boolean reminder_enabled
+        integer reminder_offset_minutes "nullable"
+    }
+
+    ReminderSchedule {
+        id reminder_id PK
+        id participant_id FK
+        text occurrence_key
+        integer event_version
+        instant due_at
+        text state
+        text email
+        text payload
+    }
+
+    NotificationDelivery {
+        id notification_id PK
+        id event_id FK
+        id participant_id
+        text occurrence_key
+        integer event_version
+        text recipient_email
+        text payload
+        text kind
+        text state
+        text dedup_key
+        integer attempt_count
+        instant next_attempt_at "nullable"
+        instant created_at
+        instant sent_at "nullable"
+    }
+
+    Session {
+        id session_id PK
+        id user_id FK
+        id device_id FK
+        text refresh_token_hash
+        integer auth_version
+        instant expires_at
+        instant revoked_at "nullable"
+    }
+
+    CalendarInvitation {
+        id invitation_id PK
+        id calendar_id FK
+        text target_email
+        text role
+        text state
+        text delivery_state
+        integer attempt_count
+        instant next_attempt_at "nullable"
+        instant expires_at
+    }
+
+    CalendarChange {
+        id calendar_id PK, FK
+        integer seq PK
+        text entity_type
+        id entity_id
+        text operation
+        integer entity_version
+        id audience_user_id "nullable"
+        instant changed_at
+    }
+
+    DeliveryTask {
+        id task_id PK
+        text task_kind
+        id source_id
+        text state
+        instant available_at
+        instant lease_until "nullable"
+        integer attempt_count
+    }
+
+    SearchDocument {
+        id event_id PK, FK
+        id calendar_id FK
+        text searchable_text
+        values date_filter_data
+        integer event_version
+    }
+
+    IdempotencyResult {
+        id user_id PK, FK
+        text request_key PK
+        text request_hash
+        text method
+        text resource
+        text state
+        integer response_status "nullable"
+        text response_body "nullable"
+        instant expires_at
+    }
+
+    SyncCursor {
+        id device_id PK, FK
+        id calendar_id PK, FK
+        integer last_seq
+        integer access_version
+        instant updated_at
+    }
+
+    SyncWait {
+        id request_id PK
+        id user_id FK
+        id device_id FK
+        id session_id FK
+        values calendar_cursors
+        instant deadline
+    }
+
+    EventCache {
+        id event_id PK, FK
+        integer event_version
+        values event_snapshot
+        instant expires_at
+    }
+```
+
+`PK` — логический ключ, `FK` — ссылка, `nullable` — необязательное поле. `||` означает один объект, `o|` — ноль или один, `o{` — ноль или много. Пунктир обозначает связь производных данных или задания с источником. Типы полей смысловые, без привязки к СУБД. У `DeliveryTask` поле `task_kind` определяет единственный источник `source_id`: `NotificationDelivery` либо `CalendarInvitation`, а не оба одновременно.
+
+| Сущность | Назначение и основные поля |
+| --- | --- |
+| `User` | Профиль, авторизация и настройки пользователя. Ключ: `user_id`. |
+| `Calendar` | Календарь, владелец, публичность и позиция изменений. Ключ: `calendar_id`. |
+| `Event` | Событие или шаблон серии; дата/время и версия. Ключ: `event_id`. |
+| `RecurrenceRule` | Правило повторения и часовой пояс серии по RFC 5545 [5]. Ключ: `event_id`. |
+| `RecurrenceException` | Отмена или перенос вхождения по исходному началу. Ключ: `event_id`, `occurrence_key`. |
+| `Device` | Устройство пользователя и время последней активности. Ключ: `device_id`. |
+| `CalendarAccess` | Право reader/writer; владелец указан в Calendar. Ключ: `calendar_id`, `user_id`. |
+| `EventParticipant` | Адресат, ответ и настройка email-напоминания; user_id необязателен. Ключ: `participant_id`. |
+| `ReminderSchedule` | Напоминание адресату о вхождении в ближайшие 7 дней. Ключ: `reminder_id`. |
+| `NotificationDelivery` | Письмо о событии/напоминание и состояние доставки. Ключ: `notification_id`. |
+| `Session` | Сессия устройства, хеш refresh-токена, срок и отзыв. Ключ: `session_id`. |
+| `CalendarInvitation` | Приглашение на календарь по email, роль и отправка письма. Ключ: `invitation_id`. |
+| `CalendarChange` | Журнал изменений и удалений для Sync и потребителей. Ключ: `calendar_id`, `seq`. |
+| `DeliveryTask` | Очередь со ссылкой на доставку или email-приглашение. Ключ: `task_id`. |
+| `SearchDocument` | Проекция названия, описания, участников и дат для поиска. Ключ: `event_id`. |
+| `IdempotencyResult` | Ключ и хеш изменяющего запроса, состояние и ответ. Ключ: `user_id`, `request_key`. |
+| `SyncCursor` | Подтверждённая позиция календаря для устройства. Ключ: `device_id`, `calendar_id`. |
+| `SyncWait` | RAM: контекст ожидающего Sync и буферы соединений. Ключ: `request_id`. |
+| `EventCache` | RAM: восстанавливаемый снимок основного события с версией. Ключ: `event_id`. |
+
+### 5.2 Размеры данных и нагрузка
+
+Используются метрики раздела 2: 3 млрд аккаунтов, MAU 500 млн, DAU 275 млн, 7,9 участника на событие. Размеры записей — средние проектные бюджеты, включая перечисленные на схеме поля. Для основных данных сохранены оценки раздела 2.4; это полезный объём одной копии без физических индексов и репликации.
+
+`Объём, ТиБ = количество записей × Б/запись / 2^40`; `QPSср = обращений за сутки / 86 400`; `QPSпик = 4 × QPSср`. QPS означает логические обращения: пакет участников или курсоров считается одним обращением, но содержит несколько строк. В таблице QPS округлены до целых, значения меньше 1 — до сотых; для RAM-наборов это обращения к памяти.
+
+| Набор | Записей, млн | Б/запись | Объём, ТиБ | QPS чтение ср./пик | QPS запись ср./пик | Срок хранения |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| `User` | 3 000,000 | 965 | 2,633 | 13 148 / 52 594 | 0,32 / 1 | До удаления аккаунта |
+| `Calendar` | 15 000,000 | 3 480 | 47,476 | 12 095 / 48 380 | 2 549 / 10 198 | До удаления календаря |
+| `Event` | 213 000,000 | 3 513 | 680,547 | 11 418 / 45 671 | 2 451 / 9 803 | 5 лет; действующая серия — до завершения |
+| `RecurrenceRule` | 21 300,000 | 640 | 12,398 | 3 345 / 13 380 | 229 / 917 | Вместе с серией |
+| `RecurrenceException` | 2 130,000 | 160 | 0,310 | 3 345 / 13 380 | 23 / 92 | Вместе с серией |
+| `Device` | 1 500,000 | 96 | 0,131 | 987 / 3 947 | 987 / 3 947 | 30 дней неактивности |
+| `CalendarAccess` | 30 000,000 | 48 | 1,310 | 12 095 / 48 380 | 64 / 255 | До отзыва |
+| `EventParticipant` | 1 682 700,000 | 80 | 122,433 | 9 826 / 39 306 | 2 451 / 9 803 | Вместе с событием |
+| `ReminderSchedule` | 1 176,000 | 1 040 | 1,112 | 1 944 / 7 778 | 4 166 / 16 663 | Горизонт 7 дней |
+| `NotificationDelivery` | 16 800,000 | 1 040 | 15,891 | 6 481 / 25 926 | 19 444 / 77 778 | 30 дней после завершения |
+| `Session` | 1 500,000 | 256 | 0,349 | 13 053 / 52 212 | 987 / 3 947 | До истечения; учёт за 30 дней |
+| `CalendarInvitation` | 165,000 | 160 | 0,024 | 95 / 382 | 127 / 509 | 30 дней |
+| `CalendarChange` | 42 459,552 | 256 | 9,886 | 14 014 / 56 057 | 2 549 / 10 198 | Не менее 30 дней |
+| `DeliveryTask` | 141,375 | 256 | 0,033 | 6 545 / 26 181 | 19 635 / 78 542 | До подтверждения; ёмкость на 1 час пика |
+| `SearchDocument` | 213 000,000 | 500 | 96,861 | 1 591 / 6 366 | 2 451 / 9 803 | Вместе с событием |
+| `IdempotencyResult` | 1 222,128 | 2 048 | 2,276 | 3 536 / 14 145 | 7 072 / 28 289 | 24 часа для результата |
+| `SyncCursor` | 22 500,000 | 48 | 0,982 | 3 183 / 12 731 | 3 183 / 12 731 | 30 дней неактивности |
+| `SyncWait` | 11,458 | 65 536 | 0,683 | 3 183 / 12 731 | 6 366 / 25 463 | До 900 с |
+| `EventCache` | 2 643,292 | 4 096 | 9,847 | 318 / 1 273 | 2 769 / 11 076 | До 15 минут |
+| Служебные позиции и резерв журнала/очередей | — | — | 0,005 | — | — | По состоянию обработки |
+| **Всего, включая RAM** | | | **1 005,187** | | | |
+
+Количество основных записей рассчитывается так: календари — `3 млрд × 5`; права — `3 млрд × 10`; события — `3,55 млрд/месяц × 60 месяцев`; участники — `события × 7,9`; правила — `события × 10%`; исключения — `события × 1%`. Устройства и сессии — `500 млн × 3`, курсоры — `500 млн × 3 × 15`. Профиль 965 Б включает авторизацию; событие 3 513 Б не включает участников, повторения и поисковую проекцию. Настройка одного email-напоминания входит в запись участника.
+
+**Допущения для временных данных:**
+
+- Доставки событий `H = 16,8 млрд / 30 = 560 млн/сутки`. Из них 30% — напоминания по времени: `R = 168 млн/сутки`, расписание на 7 дней — `1,176 млрд` записей; остальные 70% — уведомления об изменениях. Приглашения в календарь — ещё `5,5 млн/сутки`, за 30 дней — `165 млн` записей.
+- Идемпотентные результаты хранятся 24 часа: резерв `14 145 пиковых изменений/с × 86 400 = 1 222,128 млн` записей. Это ёмкость на сутки непрерывного пика, а не средний суточный поток.
+- Для журнала сохраняется бюджет раздела 3.3: `16 381 × 86 400 × 30` записей по 256 Б. Для очереди — час пикового потока email с запасом 50%: `Q / 86 400 × 4 × 3 600 × 1,5` записей по 256 Б. Неиспользованный остаток бюджета 9,924 ТиБ — служебные позиции и резерв.
+- Буферы Sync: `11 458 334 × 65 536 Б = 0,683 ТиБ`. Это тот же бюджет соединений, что в разделе 4.3; повторно прибавлять его к ресурсам L7 нельзя. Остаток RAM-бюджета 10,530 ТиБ отведён кешу: запись 4 096 Б, TTL до 15 минут; указан предел вместимости, а не фактическое заполнение.
+
+**Расчёт обращений.** Суточные потоки из раздела 2.2, в млн: `L=2,75` — вход; `F=82,5` — refresh; `C=0,275` и `K=2,75` — создание/изменение календаря; `E=118,25`, `U=60,5`, `D=19,25` — создание/изменение/удаление события; `A=5,5` — доступ; `B=13,75` — ответ участника; `S=137,5` — поиск; `Y=275` — Sync. Производные: `T=718,025` — все запросы, `W=T−S−Y`, `Z=E+U+D+B`, `M=Z+C+K+A`, `Q=H+A`, `V=K+E+U+D+A+B+2S+2Y`.
+
+Приняты: 1% входов — регистрации; выдача доступа в расчётном сценарии — зарегистрированному пользователю. Авторизованный запрос читает сессию и состояние пользователя; поиск/Sync повторяют проверку перед ответом. Проверки календарей и прав пакетные, в среднем по 15 календарей. У 10% Sync есть одно изменившееся событие (`f=0,1`); поиск выдаёт до 20 кандидатов, в 10% запросов проверяется одна серия (`p=0,1`). При записи 10% событий затрагивают правило, 1% — исключение; 30% изменений/удалений перепланируют напоминания.
+
+Число обращений **чтение / запись за сутки** для воспроизведения QPS:
+
+```text
+User                 L+A+(T−L)+S+Y          / 0,01L
+Session              T−L+S+Y                / L+F
+Device               L+F                   / L+F
+Calendar             V                     / M
+CalendarAccess       V                     / A
+CalendarInvitation   L+A                   / 2A
+Event                U+D+B+S+fY+H+R        / Z
+EventParticipant     U+D+B+fY+H+R          / E+U+D+B
+RecurrenceRule       U+D+fY+R+pS           / 0,1(E+U+D)
+RecurrenceException  U+D+fY+R+pS           / 0,01(E+U+D)
+ReminderSchedule     R                     / 2R+0,3(U+D)
+NotificationDelivery H                     / 3H
+CalendarChange       2Y+3M                 / M
+SyncCursor           Y                     / Y
+SearchDocument       S                     / Z
+IdempotencyResult    W                     / 2W
+DeliveryTask         Q                     / 3Q
+EventCache           fY                    / fY+Z
+SyncWait             Y                     / 2Y
+```
+
+Планировщик читает событие, участника, правило и исключения на каждое напоминание; отправитель — событие, адресата и состояние доставки. Три потребителя читают журнал для поиска, кеша и уведомлений. Доставка записывается при создании, начале отправки и результате; очередь — при постановке, захвате и подтверждении; идемпотентная операция — при начале и завершении. Изменения события продвигают версию и позицию календаря. Успешные попадания в кеш не уменьшают оценку чтений источника.
+
+Пакет не равен строке: запись участников затрагивает в среднем `7,9E+U+B+7,9D = 1 160,5 млн` строк/сутки; чтение/запись курсоров — `15Y = 4 125 млн` строк/сутки. QPS таблицы описывает обычную работу без повторов, очистки истёкших данных и полной пересинхронизации. Повторы увеличивают нагрузку доставки пропорционально числу попыток; очистка в установившемся режиме удаляет столько записей, сколько создаётся. Число событий для ёмкости округлено до 3,55 млрд/месяц, для QPS используется исходный суточный поток раздела 2.2.
+
+### 5.3 Консистентность и распределение нагрузки
+
+- **Авторизация и доступ:** проверки используют актуальное состояние согласно разделу 3. Отзыв права исключает дальнейшую выдачу данных через API, поиск и Sync; участник события не получает автоматически доступ ко всему календарю. Приглашение незарегистрированному адресу активируется после подтверждения соответствующего email.
+- **События:** изменение события, участников/серии, версии и записи журнала — одна логическая операция. Для серии хранится правило, а не все вхождения; исключение идентифицируется исходным началом вхождения. Время хранится с именем часового пояса; для события на весь день используются даты. Конец интервала исключающий.
+- **Синхронизация:** изменения упорядочены внутри календаря, удаления передаются как tombstone. Курсор хранит подтверждённую устройством позицию; при выходе за 30-дневное окно нужна полная синхронизация. Позиция ответа не опережает доступную версию данных. Поиск и кеш обновляются с допустимой задержкой, но перед выдачей проверяются актуальные права и удаление события.
+- **Доставка и повторы:** задания обрабатываются как минимум один раз, поэтому возможны дубли email. Недоставленные задания и ещё не обработанные обязательным потребителем записи журнала не удаляются только из-за TTL; длительный отказ требует дополнительной ёмкости. Идемпотентный ключ защищает от повторного изменения при том же запросе в течение 24 часов. Риск потери последних изменений при аварии мастера остаётся таким, как принят в разделе 3.
+- **Нагрузка по ключам:** популярные календари создают горячие `calendar_id`; массовые события — всплески по `event_id` и участникам; начала встреч в :00/:30 — пики по `due_at`. Пользователи активны неравномерно, повторные запросы концентрируются на ключах идемпотентности, а восстановление связи создаёт волну Sync. Средние 7,9 участника не заменяют продуктовый предел 200 гостей [4].
+
+Файловые вложения в MVP не предусмотрены; email-содержимое учтено в доставках и напоминаниях. Основные данные и проекции занимают 984,733 ТиБ, журнал и очереди с резервом — 9,924 ТиБ, кеш и буферы — 10,530 ТиБ; суммарно 1 005,187 ТиБ, как в разделе 2.4. Постоянное хранение и RAM учитываются раздельно при дальнейшем расчёте ресурсов.
+
+---
+
+
 
 ## Список использованных источников
 
