@@ -765,305 +765,101 @@ deadline"]
 
 ## 6. Физическая схема базы данных
 
-### 6.1. Физическая схема
+### 6.1. Размещение данных
 
-PostgreSQL хранит основные данные и обслуживает поиск и очередь. Redis хранит снимки событий, RAM сервиса Sync — контекст ожидания, S3 — резервные копии [14].
+PostgreSQL хранит сессии, данные календаря, поиск и очередь; Redis — кеш событий, RAM Sync — ожидания, S3 — резервные копии. Поля основных сущностей приведены в разделе 5; физические дополнения, ключи и индексы — в таблице 6.2.
 
 ```mermaid
 flowchart TB
-    subgraph authDb["PostgreSQL 18 / Auth / 32 группы / hash(user_id)"]
-        user["User
-user_id: bigint
-email: text
-email_verified: boolean
-password_hash: text
-display_name: text
-timezone: text
-status: text
-auth_version: bigint
-created_at: timestamptz
-PK user_id
-email: глобальный UNIQUE в Directory"]
-        session["Session
-session_id: bigint
-user_id: bigint
-device_id: bigint
-refresh_token_hash: text
-auth_version: bigint
-expires_at: timestamptz
-revoked_at: timestamptz
-client_type: text
-last_seen_at: timestamptz
-PK user_id, session_id
-UQ user/refresh_hash; IDX user/device, expires"]
-        idempotencyResult["IdempotencyResult
-user_id: bigint
-request_key: text
-request_hash: text
-method: text
-resource: text
-state: text
-response_status: bigint
-response_body: text
-expires_at: timestamptz
-target_kind: text
-target_bucket: bigint
-target_id: bigint
-PK user_id, request_key
-IDX expires (completed)"]
-        userCalendar["UserCalendar
-user_id: bigint
-calendar_id: bigint
-role: text
-is_owner: boolean
-access_version: bigint
-updated_at: timestamptz
-PK user_id, calendar_id
-IDX user/is_owner"]
+    api["API и workers"] --> pool["PgBouncer / primary и read endpoints"]
+    subgraph main["PostgreSQL / primary во Франкфурте"]
+        auth["Auth / 32 группы / hash(user_id)
+User, Session, IdempotencyResult, UserCalendar"]
+        cal["Cal / 512 групп / hash(calendar_id)
+Calendar, CalendarAccess, CalendarInvitation
+Event, EventParticipant, RecurrenceException
+Notification, CalendarChange, SyncCursor
+SearchDocument, DeliveryTask, OperationResult, SentReminder"]
+        directory["Directory / 1 группа
+EmailDirectory, ShardMap"]
     end
-    subgraph calDb["PostgreSQL 18 / Cal / 512 групп / hash(calendar_id)"]
-        calendar["Calendar
-calendar_id: bigint
-owner_id: bigint
-title: text
-description: text
-timezone: text
-is_public: boolean
-access_version: bigint
-change_seq: bigint
-updated_at: timestamptz
-PK calendar_id
-IDX owner_id"]
-        calendarAccess["CalendarAccess
-calendar_id: bigint
-user_id: bigint
-role: text
-granted_at: timestamptz
-revoked_at: timestamptz
-PK calendar_id, user_id
-IDX user/calendar (active)"]
-        calendarInvitation["CalendarInvitation
-invitation_id: bigint
-calendar_id: bigint
-target_email: text
-role: text
-state: text
-delivery_state: text
-attempt_count: bigint
-next_attempt_at: timestamptz
-expires_at: timestamptz
-PK calendar_id, invitation_id
-IDX email/state, expires"]
-        event["Event
-event_id: bigint
-calendar_id: bigint
-organizer_id: bigint
-title: text
-description: text
-location: text
-all_day: boolean
-starts_at: timestamptz
-ends_at: timestamptz
-start_date: date
-end_date: date
-timezone: text
-rrule: text
-version: bigint
-created_at: timestamptz
-updated_at: timestamptz
-deleted_at: timestamptz
-PK calendar_id, event_id
-IDX calendar/start, all_day, rrule"]
-        eventParticipant["EventParticipant
-participant_id: bigint
-event_id: bigint
-user_id: bigint
-email: text
-response_status: text
-responded_at: timestamptz
-reminder_enabled: boolean
-reminder_offset_minutes: bigint
-calendar_id: bigint
-PK calendar_id, participant_id
-UQ calendar/event/email; IDX event"]
-        recurrenceException["RecurrenceException
-event_id: bigint
-occurrence_key: text
-cancelled: boolean
-override_fields: jsonb
-updated_at: timestamptz
-calendar_id: bigint
-PK calendar_id, event_id, occurrence_key
-IDX updated_at"]
-        notification["Notification
-notification_id: bigint
-event_id: bigint
-participant_id: bigint
-occurrence_key: text
-event_version: bigint
-due_at: timestamptz
-recipient_email: text
-payload: text
-state: text
-attempt_count: bigint
-next_attempt_at: timestamptz
-created_at: timestamptz
-sent_at: timestamptz
-calendar_id: bigint
-PK calendar_id, notification_id
-UQ participant/occurrence; IDX due/retry/sent"]
-        calendarChange["CalendarChange
-calendar_id: bigint
-seq: bigint
-entity_type: text
-entity_id: bigint
-operation: text
-entity_version: bigint
-audience_user_id: bigint
-changed_at: timestamptz
-PK calendar_id, seq
-IDX changed_at"]
-        syncCursor["SyncCursor
-device_id: bigint
-calendar_id: bigint
-last_seq: bigint
-access_version: bigint
-updated_at: timestamptz
-PK calendar_id, device_id
-IDX updated_at"]
-        searchDocument["SearchDocument
-event_id: bigint
-calendar_id: bigint
-searchable_text: text
-date_filter_data: jsonb
-event_version: bigint
-event_span: tstzrange
-PK calendar_id, event_id
-GIN text; GiST event_span"]
-        deliveryTask["DeliveryTask
-task_id: bigint
-task_kind: text
-source_id: bigint
-state: text
-available_at: timestamptz
-lease_until: timestamptz
-attempt_count: bigint
-calendar_id: bigint
-lease_token: uuid
-source_version: bigint
-PK calendar_id, task_id
-IDX ready/time, lease; UQ source/version"]
-        operationResult["OperationResult
-user_id: bigint
-request_key: text
-request_hash: text
-method: text
-resource: text
-state: text
-response_status: bigint
-response_body: text
-expires_at: timestamptz
-PK user_id, request_key
-IDX expires (completed)"]
-        sentReminder["SentReminder
-calendar_id: bigint
-event_id: bigint
-participant_id: bigint
-occurrence_key: text
-sent_at: timestamptz
-PK calendar_id, participant_id, occurrence_key
-IDX calendar/event"]
-    end
-    subgraph directoryDb["PostgreSQL 18 / Directory / 1 группа"]
-        emailDirectory["EmailDirectory
-email_norm: text
-user_id: bigint
-state: text
-created_at: timestamptz
-PK email_norm
-UQ user_id"]
-        shardMap["ShardMap
-domain: text
-bucket: bigint
-primary_endpoint: text
-read_endpoints: jsonb
-map_version: bigint
-PK domain, bucket
-IDX map_version"]
-    end
-    user -->|"FK user_id"| session
-    user -->|"FK user_id"| userCalendar
-    user -->|"FK user_id"| idempotencyResult
-    calendar -->|"FK calendar_id"| event
-    calendar -->|"FK calendar_id"| calendarAccess
-    calendar -->|"FK calendar_id"| calendarInvitation
-    calendar -->|"FK calendar_id"| calendarChange
-    calendar -->|"FK calendar_id"| syncCursor
-    event -->|"FK calendar_id,event_id"| eventParticipant
-    event -->|"FK calendar_id,event_id"| recurrenceException
-    emailDirectory -.->|"пользователь; межшардовая ссылка"| user
-    userCalendar -.->|"производный список; не разрешение"| calendar
-    idempotencyResult -.->|"целевой сегмент и результат"| operationResult
-    searchDocument -.->|"проекция и версия"| event
-    notification -.->|"источник; история без cascade"| eventParticipant
-    deliveryTask -.->|"source_id: notification"| notification
-    deliveryTask -.->|"source_id: invitation"| calendarInvitation
-    notification -.->|"sent: атомарная отметка"| sentReminder
+    pool --> auth
+    pool --> cal
+    pool --> directory
+    main -->|"sync / другая стойка"| local["Локальные standby / по одной на группу"]
+    main -->|"async"| remote["Read-копии каждой группы
+Вирджиния, Мумбаи, Сан-Паулу"]
+    remote -.->|"допустимое устаревающее чтение"| pool
+    api --> cache["Redis по ДЦ / EventCache
+event:calendar_id:event_id / TTL до 900 с
+primary + replica / Sentinel"]
+    api --> wait["RAM сервиса Sync / SyncWait
+request_id / до 900 с"]
+    local -->|"pgBackRest + архив WAL"| backup["S3 / full + incremental / PITR 30 дней
+независимая региональная копия"]
 ```
 
-### 6.2. Таблицы и шардирование
+Стрелки sync/async обозначают копирование данных. Auth распределяется по `user_id`, Cal — по `calendar_id`; `ShardMap` сопоставляет 16 384 виртуальных сегмента каждого домена физическим группам. Внешние FK действуют внутри SQL-группы, межшардовые ссылки проверяет приложение.
 
-Auth распределяется по `user_id`, Cal — по `calendar_id`. Хеш выбирает один из 16 384 виртуальных сегментов в каждом домене, а `ShardMap` указывает его группу. Directory размещается в одной группе. Физические FK действуют внутри группы; межшардовые ссылки проверяет приложение.
+### 6.2. Таблицы и индексы
 
-**PG 1+1+3** — primary и синхронная standby в разных стойках Франкфурта и по одной асинхронной копии в Вирджинии, Мумбаи и Сан-Паулу [15]. Индексы B-tree, если не указан другой тип.
+**PG 1+1+3** — primary, локальная sync-standby и три региональные async-копии [14]. PK — первичный ключ, UNIQUE — уникальность, IDX — вторичный индекс. PK и UNIQUE уже создают индексы B-tree; остальные индексы B-tree, если тип не указан. Событие, участники, исключения и журнал изменяются одной транзакцией Cal.
 
-| Данные | Назначение | СУБД | Ключи и индексы | Шард | Реплики |
-| --- | --- | --- | --- | --- | --- |
-| `User` | Аккаунт и авторизация; глобальная уникальность адреса через EmailDirectory. | PostgreSQL 18 | `(user_id)`; email_norm UNIQUE через EmailDirectory; локальный email | Auth: hash(user_id) | PG 1+1+3 |
-| `Session` | Сессия установки; session_id содержит сегмент пользователя. | PostgreSQL 18 | `(user_id, session_id)`; UNIQUE(user_id, refresh_token_hash); (user_id, device_id); expires_at | Auth: hash(user_id) | PG 1+1+3 |
-| `Calendar` | Владелец, версия прав и позиция журнала календаря. | PostgreSQL 18 | `(calendar_id)`; owner_id | Cal: hash(calendar_id) | PG 1+1+3 |
-| `CalendarAccess` | Персональные права, проверяемые перед выдачей. | PostgreSQL 18 | `(calendar_id, user_id)`; (user_id, calendar_id) WHERE revoked_at IS NULL | Cal: hash(calendar_id) | PG 1+1+3 |
-| `CalendarInvitation` | Приглашение по email и состояние доставки. | PostgreSQL 18 | `(calendar_id, invitation_id)`; (target_email, state); expires_at | Cal: hash(calendar_id) | PG 1+1+3 |
-| `Event` | Событие и правило серии; запись вместе с журналом. | PostgreSQL 18 | `(calendar_id, event_id)`; (calendar_id, starts_at) WHERE deleted_at IS NULL; (calendar_id, start_date) WHERE all_day; calendar_id WHERE rrule IS NOT NULL | Cal: hash(calendar_id) | PG 1+1+3 |
-| `EventParticipant` | Участники; добавлен calendar_id для совместного размещения. | PostgreSQL 18 | `(calendar_id, participant_id)`; UNIQUE(calendar_id, event_id, email); (calendar_id, event_id) | Cal: hash(calendar_id) | PG 1+1+3 |
-| `RecurrenceException` | Перенос или отмена вхождения; добавлен calendar_id. | PostgreSQL 18 | `(calendar_id, event_id, occurrence_key)`; updated_at | Cal: hash(calendar_id) | PG 1+1+3 |
-| `Notification` | Напоминание и история отправки; добавлен calendar_id. | PostgreSQL 18 | `(calendar_id, notification_id)`; UNIQUE(calendar_id, participant_id, occurrence_key); due_at WHERE state=scheduled; next_attempt_at WHERE state=retry; sent_at WHERE state=sent | Cal: hash(calendar_id) | PG 1+1+3 |
-| `CalendarChange` | Журнал изменений в порядке seq внутри календаря. | PostgreSQL 18 | `(calendar_id, seq)`; changed_at | Cal: hash(calendar_id) | PG 1+1+3 |
-| `SyncCursor` | Подтверждённая позиция установки в календаре. | PostgreSQL 18 | `(calendar_id, device_id)`; updated_at | Cal: hash(calendar_id) | PG 1+1+3 |
-| `IdempotencyResult` | Резерв запроса; добавлены тип, сегмент и ID цели. | PostgreSQL 18 | `(user_id, request_key)`; expires_at WHERE state=completed | Auth: hash(user_id) | PG 1+1+3 |
-| `SearchDocument` | Поисковая проекция; добавлен интервал event_span. Права и точные вхождения проверяются после отбора. | PostgreSQL 18 | `(calendar_id, event_id)`; GIN(to_tsvector('simple', searchable_text)); GiST(event_span) | Cal: hash(calendar_id) | PG 1+1+3 |
-| `DeliveryTask` | Задание рядом с источником; добавлены calendar_id, lease_token и source_version. Захват через SKIP LOCKED. | PostgreSQL 18 | `(calendar_id, task_id)`; (available_at, task_id) WHERE state IN (ready,retry); lease_until WHERE state=leased; UNIQUE(calendar_id,task_kind,source_id,source_version) для активных задач | Cal: hash(calendar_id) | PG 1+1+3 |
-| `EventCache` | Снимок события; TTL до 900 с, инвалидация по журналу. | Redis | `event:{calendar_id}:{event_id}`; версия + TTL | По ДЦ; внутри ДЦ без шардинга | 1 primary + 1 replica |
-| `SyncWait` | Ожидание до 900 с; после сбоя клиент продолжает с подтверждённого курсора. | RAM Sync | Map по `request_id`; таймер `deadline` | По экземплярам сервиса | Переподключение; без копии контекста |
-| `EmailDirectory` | Уникальный email → user_id; резерв адреса до создания аккаунта. | PostgreSQL 18 | PK (email_norm); user_id | Directory | PG 1+1+3 |
-| `UserCalendar` | Производный список календарей пользователя; права берутся из Cal. | PostgreSQL 18 | PK (user_id, calendar_id); (user_id, is_owner) | Auth: hash(user_id) | PG 1+1+3 |
-| `OperationResult` | Ответ сохраняется в транзакции с изменением; повтор читает сохранённый результат. | PostgreSQL 18 | PK (user_id, request_key); expires_at для завершённых | Целевой шард операции | PG 1+1+3 |
-| `SentReminder` | Маркер отправки, сохраняемый после очистки 30-дневной истории. | PostgreSQL 18 | PK (calendar_id, participant_id, occurrence_key); (calendar_id, event_id) | Cal: hash(calendar_id) | PG 1+1+3 |
-| `ShardMap` | Карта виртуальных сегментов Auth и Cal. | PostgreSQL 18 | PK (domain, bucket); (domain, group_id) | Directory | PG 1+1+3 |
+| Данные | Хранилище, ключи и индексы | Шардирование и резервирование |
+| --- | --- | --- |
+| `User` | PostgreSQL 18; PK (user_id); глобальный UNIQUE(email_norm) в EmailDirectory; IDX (email).  | Auth: hash(user_id); PG 1+1+3 |
+| `Session` | PostgreSQL 18; PK (user_id, session_id); UNIQUE (user_id, refresh_token_hash); IDX (user_id, device_id), (expires_at).  | Auth: hash(user_id); PG 1+1+3 |
+| `Calendar` | PostgreSQL 18; PK (calendar_id); IDX (owner_id).  | Cal: hash(calendar_id); PG 1+1+3 |
+| `CalendarAccess` | PostgreSQL 18; PK (calendar_id, user_id); IDX (user_id, calendar_id) WHERE revoked_at IS NULL.  | Cal: hash(calendar_id); PG 1+1+3 |
+| `CalendarInvitation` | PostgreSQL 18; PK (calendar_id, invitation_id); IDX (target_email, state), (expires_at).  | Cal: hash(calendar_id); PG 1+1+3 |
+| `Event` | PostgreSQL 18; PK (calendar_id, event_id); IDX (calendar_id, starts_at) WHERE deleted_at IS NULL; IDX (calendar_id, start_date) WHERE all_day; IDX (calendar_id) WHERE rrule IS NOT NULL.  | Cal: hash(calendar_id); PG 1+1+3 |
+| `EventParticipant` | PostgreSQL 18; PK (calendar_id, participant_id); UNIQUE (calendar_id, event_id, email). Доп. calendar_id bigint для совместного размещения. | Cal: hash(calendar_id); PG 1+1+3 |
+| `RecurrenceException` | PostgreSQL 18; PK (calendar_id, event_id, occurrence_key); IDX (updated_at). Доп. calendar_id bigint для совместного размещения. | Cal: hash(calendar_id); PG 1+1+3 |
+| `Notification` | PostgreSQL 18; PK (calendar_id, notification_id); UNIQUE (calendar_id, participant_id, occurrence_key); IDX (due_at) WHERE state='scheduled'; IDX (next_attempt_at) WHERE state='retry'; IDX (sent_at) WHERE state='sent'. Доп. calendar_id bigint для совместного размещения. | Cal: hash(calendar_id); PG 1+1+3 |
+| `CalendarChange` | PostgreSQL 18; PK (calendar_id, seq); IDX (changed_at).  | Cal: hash(calendar_id); PG 1+1+3 |
+| `SyncCursor` | PostgreSQL 18; PK (calendar_id, device_id); IDX (updated_at).  | Cal: hash(calendar_id); PG 1+1+3 |
+| `IdempotencyResult` | PostgreSQL 18; PK (user_id, request_key); IDX (expires_at) WHERE state='completed'. Доп. target_kind text, target_bucket bigint, target_id bigint — цель повтора. | Auth: hash(user_id); PG 1+1+3 |
+| `SearchDocument` | PostgreSQL 18; PK (calendar_id, event_id); GIN (to_tsvector('simple', searchable_text)); GiST (event_span). Доп. event_span tstzrange — отбор по периоду; точные вхождения и права проверяются после отбора. | Cal: hash(calendar_id); PG 1+1+3 |
+| `DeliveryTask` | PostgreSQL 18; PK (calendar_id, task_id); IDX (available_at, task_id) WHERE state IN ('ready','retry'); IDX (lease_until) WHERE state='leased'; UNIQUE (calendar_id, task_kind, source_id, source_version) WHERE state IN ('ready','retry','leased'). Доп. calendar_id bigint, lease_token uuid, source_version bigint — размещение, захват и проверка версии; SKIP LOCKED. | Cal: hash(calendar_id); PG 1+1+3 |
+| `EventCache` | Redis; `event:{calendar_id}:{event_id}`; версия + TTL.  | По ДЦ; внутри ДЦ без шардинга; 1 primary + 1 replica |
+| `SyncWait` | RAM Sync; Map по `request_id`; таймер `deadline`.  | По экземплярам сервиса; Переподключение; без копии контекста |
+| `EmailDirectory` | PostgreSQL 18; PK (email_norm); UNIQUE (user_id). Поля: email_norm text, user_id bigint, state text, created_at timestamptz. | Directory; PG 1+1+3 |
+| `UserCalendar` | PostgreSQL 18; PK (user_id, calendar_id); IDX (user_id, is_owner). Поля: user_id bigint, calendar_id bigint, role text, is_owner boolean, access_version bigint, updated_at timestamptz. | Auth: hash(user_id); PG 1+1+3 |
+| `OperationResult` | PostgreSQL 18; PK (user_id, request_key); IDX (expires_at) WHERE state='completed'. Поля: user_id bigint, request_key text, request_hash text, method text, resource text, state text, response_status bigint, response_body text, expires_at timestamptz. | Целевой шард операции; PG 1+1+3 |
+| `SentReminder` | PostgreSQL 18; PK (calendar_id, participant_id, occurrence_key); IDX (calendar_id, event_id). Поля: calendar_id bigint, event_id bigint, participant_id bigint, occurrence_key text, sent_at timestamptz. | Cal: hash(calendar_id); PG 1+1+3 |
+| `ShardMap` | PostgreSQL 18; PK (domain, bucket); IDX (map_version). Поля: domain text, bucket bigint, primary_endpoint text, read_endpoints jsonb, map_version bigint. | Directory; PG 1+1+3 |
+
+Для EventParticipant отдельный IDX (calendar_id, event_id) не создаётся: поиск участников использует префикс UNIQUE (calendar_id, event_id, email).
+
+Кеш заполняется из primary при промахе после проверки прав. Снимок содержит версию события и живёт до 900 с от начала загрузки; запоздавшая запись в Redis не продлевает срок. Журнал изменений инвалидирует кеш; чтение сразу после записи идёт на primary. Обычное чтение допускает ограниченное устаревание. При сбое Redis чтение идёт в PostgreSQL с ограничением параллелизма; права проверяются отдельно.
 
 ### 6.3. Ёмкость и эксплуатация
 
-Полезный объём PostgreSQL с физическими полями и таблицами — **1 855,180 ТиБ**. На узел предусмотрено 16 ТиБ NVMe. Бюджет учитывает строки и индексы (×2), перекос объёма (×1,25), 256 ГиБ WAL и 30% свободного места.
+Полезный объём PostgreSQL — **1 855,180 ТиБ**. Проектная конфигурация SQL-узла — 64 vCPU, 256 ГиБ RAM, 16 ТиБ NVMe и сеть 25 Гбит/с. Бюджет учитывает строки и индексы (×2), перекос объёма (×1,25), 256 ГиБ WAL и 30% свободного места.
 
 `Диск на узел = (2 × полезный объём группы × 1,25 + 0,25 ТиБ WAL) / 0,7`.
 
 Для Cal: `(2 × (1 846,848 / 512) × 1,25 + 0,25) / 0,7 ≈ 13,240 ТиБ`.
 
-| Группа | Полезный объём, ТиБ | Минимум групп по диску / SQL | Принято групп | ТиБ на узел | Требуется SQL/с на узел |
+| PostgreSQL | Полезный объём, ТиБ | Минимум групп по диску / SQL | Принято групп | ТиБ на узел | Требуется SQL/с на узел |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | Auth | 7,983 | 2 / 21 | 32 | 1,248 | 12 811 |
 | Cal | 1 846,848 | 422 / 329 | 512 | 13,240 | 12 824 |
 | Directory | 0,349 | 1 / 1 | 1 | 1,604 | 925 |
 
-Число групп — ближайшая степень двойки не меньше обоих минимумов. В SQL-нагрузке учтены пакетные обращения к нескольким шардам, множитель ×2 на перекос и 20% на фон. Пороги приёмки — 20 000 SQL/с на узел Auth и Cal и 2 000 для Directory. Это расчётные требования для проверки на стенде.
+Число групп — ближайшая степень двойки не меньше обоих минимумов. В нагрузке учтены пакетные обращения к нескольким шардам, множитель ×2 на перекос и 20% на фон. Пороги приёмки — 20 000 SQL/с на узел Auth/Cal и 2 000 для Directory; это расчётные требования к проверке на стенде.
+
+Для Cal: `(2 255 492 + 480 309) × 2 × 1,2 / 512 ≈ 12 824 SQL/с`. В сумме раскрыты пакеты до 15 календарей и поиск приглашений при входе по всем Cal-группам; слагаемые — пиковые SQL-чтения и записи до запаса.
+
+Кеш событий — 4,371 ГиБ полезных данных глобально. В каждом ДЦ предусмотрены Redis primary и replica по 32 ГиБ RAM, `maxmemory=16gb`: весь глобальный кеш с бюджетом ×2 помещается даже в одном ДЦ. Потерянные записи восстанавливаются из PostgreSQL, постоянный backup кеша не требуется [15].
 
 | Компонент | Решение |
 | --- | --- |
-| Подключения | Go `pgx/v5`, ограниченные пулы, PgBouncer в режиме `transaction` [16]. |
-| Запросы | Запись, очередь, проверка прав и чтение сразу после записи — primary. Остальные чтения — региональная копия, если позволяет её позиция WAL. |
-| Реплики | При отказе primary изолируется перед повышением standby. Возможная потеря при региональном переключении зависит от отставания копии [15]. |
-| Redis и Sync | `go-redis` через Sentinel; по primary и реплике Redis на ДЦ. Кеш восстанавливается из PostgreSQL. Sync освобождает SQL-подключение на время ожидания. |
-| Backup | pgBackRest → S3: еженедельная полная и ежедневная инкрементальная копии, непрерывный WAL, окно PITR 30 дней. Независимая региональная копия и ежемесячная проверка восстановления [17]. |
+| Подключения | Go `pgx/v5`, ограниченные пулы, PgBouncer `transaction`; суммарный лимит server connections на группу для всех pooler: Auth 256, Cal 128, Directory 32 [16]. |
+| Запросы | Запись, очередь, актуальные сессии/права и чтение сразу после записи — primary. Прочие SQL-чтения — региональная копия при достаточной позиции WAL. |
+| SQL-реплики | Старый primary изолируется до повышения standby. При async-переключении возможная потеря зависит от отставания [14]. |
+| Кеш и Sync | Региональный Redis — `go-redis` через Sentinel, primary + replica; сбой обслуживается чтением источника. Sync освобождает SQL-подключение на время ожидания. |
+| Backup | pgBackRest → S3: weekly full, daily incremental, непрерывный WAL, PITR 30 дней с сохранением необходимых цепочек. Независимая региональная копия, шифрование, отдельные права backup-оператора и защита удаления (S3 Object Lock); ежемесячный restore [17]. |
 
 ## Список использованных источников
 
@@ -1080,7 +876,7 @@ Auth распределяется по `user_id`, Cal — по `calendar_id`. Х
 11. Google Research — *Maglev: A Fast and Reliable Software Network Load Balancer*. https://research.google.com/pubs/pub44824.html
 12. Badoo — *Автоматический подбор весов в балансировщике*. https://habr.com/company/oleg-bunin/blog/310366/
 13. init/highload — *Методические указания к курсовой работе: логическая и физическая схемы БД*. https://github.com/init/highload/blob/main/homework_architecture.md
-14. Лекция 6 — *Выбор баз данных*, 20231010_highload_l6.pdf, слайды 2–3, 10–14. https://cloud.mail.ru/public/92X8/okchPFYJD
-15. PostgreSQL 18 — *Log-Shipping Standby Servers*. https://www.postgresql.org/docs/18/warm-standby.html
+14. PostgreSQL 18 — *Log-Shipping Standby Servers*. https://www.postgresql.org/docs/18/warm-standby.html
+15. Redis — *High availability with Redis Sentinel*. https://redis.io/docs/latest/operate/oss_and_stack/management/sentinel/
 16. PgBouncer — *Features and transaction pooling compatibility*. https://www.pgbouncer.org/features.html
 17. pgBackRest — *User Guide: S3, retention, standby backup and restore*. https://pgbackrest.org/user-guide.html
