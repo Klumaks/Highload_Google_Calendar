@@ -1,0 +1,247 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 1050" width="1440" height="1050" role="img" aria-labelledby="title desc">
+<title id="title">Схема проекта Calendar</title>
+<desc id="desc">Слева типовой региональный дата-центр, справа Франкфурт. DNS отвечает через резолвер, HTTPS идёт напрямую к VIP. Отдельно показаны служебные запросы, фоновые задания и репликация.</desc>
+<defs><marker id="client" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto" markerUnits="userSpaceOnUse"><path d="M0 0 L10 5 L0 10Z" fill="#1d6199"/></marker><marker id="internal" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto" markerUnits="userSpaceOnUse"><path d="M0 0 L10 5 L0 10Z" fill="#15665a"/></marker><marker id="job" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto" markerUnits="userSpaceOnUse"><path d="M0 0 L10 5 L0 10Z" fill="#86501c"/></marker><marker id="copy" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto" markerUnits="userSpaceOnUse"><path d="M0 0 L10 5 L0 10Z" fill="#6d469b"/></marker><style>text{font-family:Arial,sans-serif;fill:#142740}.heading{font-size:27px;font-weight:700}.label{font-size:20px;font-weight:700}.detail{font-size:17px;fill:#344861}.note{font-size:17px;font-weight:700;paint-order:stroke;stroke:#fff;stroke-width:4px;stroke-linejoin:round}.network{fill:#e6f2fb;stroke:#78a2c5}.app{fill:#e8f5f3;stroke:#75a79e}.data{fill:#edf2ff;stroke:#879bc7}.queue{fill:#fff2df;stroke:#c09761}.external{fill:#f5eefa;stroke:#af93c4}.box{stroke-width:1.35}.zone{stroke-width:1.4}.entry{fill:#f4f8fc;stroke:#bed0e1}.region{fill:#f1f8f9;stroke:#a9cdd0}.frank{fill:#f4f6fd;stroke:#b6c5e5}.cal{fill:#f9fbff;stroke:#879bc7;stroke-dasharray:4 3}.edge{fill:none;stroke-width:2;stroke-linejoin:round}.rail{marker-end:none!important}.copy{stroke-dasharray:8 5}.edge.client{stroke:#1d6199;marker-end:url(#client)}.note.client{fill:#1d6199;stroke:#fff;stroke-dasharray:none}.edge.internal{stroke:#15665a;marker-end:url(#internal)}.note.internal{fill:#15665a;stroke:#fff;stroke-dasharray:none}.edge.job{stroke:#86501c;marker-end:url(#job)}.note.job{fill:#86501c;stroke:#fff;stroke-dasharray:none}.edge.copy{stroke:#6d469b;marker-end:url(#copy)}.note.copy{fill:#6d469b;stroke:#fff;stroke-dasharray:none}.badge{stroke:#fff;stroke-width:2}.index{font-size:18px;font-weight:700;fill:#fff}.band-title{font-size:18px;font-weight:700;fill:#304760}.band-divider{stroke:#c6d5e4;stroke-width:1;stroke-dasharray:5 5}</style></defs>
+<rect width="1440" height="1050" fill="#fff"/>
+<rect class="zone entry" x="20" y="16" width="1400" height="144" rx="15"/>
+<rect class="zone region" x="20" y="185" width="583" height="553" rx="15"/>
+<rect class="zone frank" x="656" y="185" width="764" height="745" rx="15"/>
+<rect x="21" y="553" width="581" height="184" rx="14" fill="#eaf3fb"/>
+<rect x="657" y="553" width="762" height="376" rx="14" fill="#edf1fb"/>
+<path class="band-divider" d="M25 553H598M661 553H1415"/>
+<g id="cal">
+<rect class="box data" x="899" y="650" width="489" height="106" rx="11"/>
+<text class="label" x="1143.5" y="698" text-anchor="middle">PostgreSQL Cal · 1 024 шарда</text>
+<text class="detail" x="1143.5" y="726" text-anchor="middle">Календари, события, права и очереди</text>
+</g>
+<text class="heading" x="42" y="49" text-anchor="start">Клиентский вход</text>
+<text class="heading" x="42" y="218" text-anchor="start">Типовой региональный ДЦ</text>
+<text class="detail" x="42" y="240" text-anchor="start">Вирджиния · Мумбаи · Сан-Паулу</text>
+<text class="heading" x="680" y="222" text-anchor="start">Франкфурт</text>
+<path class="edge client" d="M478 59H633"/>
+<path class="edge client" d="M633 84H478"/>
+<path class="edge client" d="M818 59H990"/>
+<path class="edge client" d="M990 84H818"/>
+<text class="note client" x="555" y="50" text-anchor="middle">DNS-запрос</text>
+<text class="note client" x="555" y="106" text-anchor="middle">Ответ с VIP</text>
+<text class="note client" x="904" y="50" text-anchor="middle">DNS + ECS</text>
+<text class="note client" x="904" y="106" text-anchor="middle">Ответ с VIP</text>
+<path class="edge client" d="M386 103V138H581V258H120V267"/>
+<path class="edge client" d="M581 138H851V258H765V267"/>
+<text class="note client" x="495" y="132" text-anchor="start">HTTPS к VIP выбранного ДЦ</text>
+<g id="calendar-client">
+<rect class="box network" x="294" y="42" width="184" height="61" rx="9"/>
+<text class="label" x="386" y="77.5" text-anchor="middle">Клиент Calendar</text>
+</g>
+<g id="resolver">
+<rect class="box network" x="633" y="42" width="185" height="61" rx="9"/>
+<text class="label" x="725.5" y="77.5" text-anchor="middle">DNS-резолвер</text>
+</g>
+<g id="geodns">
+<rect class="box network" x="990" y="42" width="229" height="61" rx="9"/>
+<text class="label" x="1104.5" y="68.5" text-anchor="middle">GeoDNS</text>
+<text class="detail" x="1104.5" y="86.5" text-anchor="middle">Выбор ДЦ</text>
+</g>
+<g id="r-routers">
+<rect class="box network" x="45" y="267" width="150" height="64" rx="9"/>
+<text class="label" x="120" y="295" text-anchor="middle" style="font-size:15.5px">Маршрутизаторы</text>
+<text class="detail" x="120" y="313" text-anchor="middle">BGP / ECMP · N+1</text>
+</g>
+<g id="r-maglev">
+<rect class="box network" x="225" y="267" width="150" height="64" rx="9"/>
+<text class="label" x="300" y="295" text-anchor="middle">L4 Maglev</text>
+<text class="detail" x="300" y="313" text-anchor="middle">GRE / DSR · N+1</text>
+</g>
+<g id="r-nginx">
+<rect class="box network" x="405" y="267" width="150" height="64" rx="9"/>
+<text class="label" x="480" y="295" text-anchor="middle">NGINX L7</text>
+<text class="detail" x="480" y="313" text-anchor="middle">TLS · N×2</text>
+</g>
+<path class="edge client" d="M195 299H225"/>
+<path class="edge client" d="M375 299H405"/>
+<path class="edge client rail" d="M480 331V354H120"/>
+<path class="edge client" d="M120 354V412"/>
+<path class="edge client" d="M300 354V412"/>
+<path class="edge client" d="M480 354V412"/>
+<text class="note client" x="120" y="387" text-anchor="middle">WRR</text>
+<text class="note client" x="300" y="387" text-anchor="middle">WLC</text>
+<text class="note client" x="480" y="388" text-anchor="middle">LC</text>
+<g id="r-api">
+<rect class="box app" x="45" y="412" width="150" height="66" rx="9"/>
+<text class="label" x="120" y="441" text-anchor="middle">API</text>
+<text class="detail" x="120" y="459" text-anchor="middle">Чтение · запись</text>
+</g>
+<g id="r-search">
+<rect class="box app" x="225" y="412" width="150" height="66" rx="9"/>
+<text class="label" x="300" y="441" text-anchor="middle">Search</text>
+<text class="detail" x="300" y="459" text-anchor="middle">Пакеты Cal</text>
+</g>
+<g id="r-sync">
+<rect class="box app" x="405" y="412" width="150" height="66" rx="9"/>
+<text class="label" x="480" y="441" text-anchor="middle">Sync</text>
+<text class="detail" x="480" y="459" text-anchor="middle">Long polling</text>
+</g>
+<g id="f-routers">
+<rect class="box network" x="680" y="267" width="170" height="64" rx="9"/>
+<text class="label" x="765" y="295" text-anchor="middle" style="font-size:15.5px">Маршрутизаторы</text>
+<text class="detail" x="765" y="313" text-anchor="middle">BGP / ECMP · N+1</text>
+</g>
+<g id="f-maglev">
+<rect class="box network" x="899" y="267" width="170" height="64" rx="9"/>
+<text class="label" x="984" y="295" text-anchor="middle">L4 Maglev</text>
+<text class="detail" x="984" y="313" text-anchor="middle">GRE / DSR · N+1</text>
+</g>
+<g id="f-nginx">
+<rect class="box network" x="1118" y="267" width="170" height="64" rx="9"/>
+<text class="label" x="1203" y="295" text-anchor="middle">NGINX L7</text>
+<text class="detail" x="1203" y="313" text-anchor="middle">TLS · общий пул</text>
+</g>
+<path class="edge client" d="M850 299H899"/>
+<path class="edge client" d="M1069 299H1118"/>
+<path class="edge client rail" d="M1203 331V354H765"/>
+<path class="edge client" d="M765 354V412"/>
+<path class="edge client" d="M984 354V412"/>
+<path class="edge client" d="M1203 354V412"/>
+<text class="note client" x="765" y="387" text-anchor="middle">WRR</text>
+<text class="note client" x="984" y="387" text-anchor="middle">WLC</text>
+<text class="note client" x="1203" y="388" text-anchor="middle">LC</text>
+<g id="f-api">
+<rect class="box app" x="680" y="412" width="170" height="66" rx="9"/>
+<text class="label" x="765" y="441" text-anchor="middle">API / API записи</text>
+<text class="detail" x="765" y="459" text-anchor="middle">Запись · права</text>
+</g>
+<g id="f-search">
+<rect class="box app" x="899" y="412" width="170" height="66" rx="9"/>
+<text class="label" x="984" y="441" text-anchor="middle">Search</text>
+<text class="detail" x="984" y="459" text-anchor="middle">Пакеты Cal</text>
+</g>
+<g id="f-sync">
+<rect class="box app" x="1118" y="412" width="170" height="66" rx="9"/>
+<text class="label" x="1203" y="441" text-anchor="middle">Sync</text>
+<text class="detail" x="1203" y="459" text-anchor="middle">Long polling</text>
+</g>
+<path d="M572 252Q581 234 590 252M842 252Q851 234 860 252" stroke="#fff" stroke-width="7" fill="none"/>
+<path class="edge internal" d="M45 441H33V252H572Q581 234 590 252H842Q851 234 860 252H1203V267"/>
+<text class="note internal" x="708" y="243" text-anchor="middle">Запись между ДЦ</text>
+<path class="edge internal rail" d="M120 478V505H480"/>
+<path class="edge internal rail" d="M300 478V505"/>
+<path class="edge internal rail" d="M480 478V505"/>
+<path class="edge internal" d="M480 505H631V444H680"/>
+<text class="note internal" x="588" y="495" text-anchor="middle">Приватный RPC</text>
+<text class="note internal" x="625" y="530" text-anchor="middle">Сессия и права</text>
+<path class="edge internal" d="M120 505V573"/>
+<path class="edge internal" d="M394 505V573"/>
+<text class="note internal" x="221" y="548" text-anchor="middle">Чтение после проверки</text>
+<g id="regional-cache">
+<rect class="box data" x="45" y="573" width="150" height="76" rx="9"/>
+<text class="label" x="120" y="607" text-anchor="middle">Redis</text>
+<text class="detail" x="120" y="625" text-anchor="middle">EventCache</text>
+</g>
+<g id="regional-pg">
+<rect class="box data" x="225" y="573" width="330" height="76" rx="9"/>
+<text class="label" x="390" y="598" text-anchor="middle">PostgreSQL · реплики</text>
+<text class="detail" x="390" y="616" text-anchor="middle">Cal и Directory · WAL</text>
+<text class="detail" x="390" y="634" text-anchor="middle">Поиск и журнал Sync</text>
+</g>
+<path class="edge internal rail" d="M765 478V505H1203"/>
+<path class="edge internal rail" d="M984 478V505"/>
+<path class="edge internal rail" d="M1203 478V505"/>
+<path class="edge internal" d="M786 505V553"/>
+<path class="edge internal" d="M1203 505V553"/>
+<text class="note internal" x="1042" y="529" text-anchor="middle">HTTP · Least Request</text>
+<g id="pgbouncer">
+<rect class="box network" x="680" y="553" width="212" height="64" rx="9"/>
+<text class="label" x="786" y="581" text-anchor="middle">VIP PgBouncer</text>
+<text class="detail" x="786" y="599" text-anchor="middle">Активный + резервный</text>
+</g>
+<g id="frank-cache">
+<rect class="box data" x="1118" y="553" width="170" height="64" rx="9"/>
+<text class="label" x="1203" y="581" text-anchor="middle">Redis</text>
+<text class="detail" x="1203" y="599" text-anchor="middle">EventCache</text>
+</g>
+<g id="directory">
+<rect class="box data" x="680" y="650" width="195" height="79" rx="9"/>
+<text class="label" x="777.5" y="676.5" text-anchor="middle">Directory</text>
+<text class="detail" x="777.5" y="694.5" text-anchor="middle">ShardMap</text>
+<text class="detail" x="777.5" y="712.5" text-anchor="middle">EmailDirectory</text>
+</g>
+<path class="edge internal" d="M786 617V650"/>
+<path class="edge internal" d="M892 585H940V650"/>
+<text class="note internal" x="964" y="626" text-anchor="middle">SQL к Cal</text>
+<path class="edge copy" d="M680 708H647V672H390V649"/>
+<path class="edge copy rail" d="M899 742H887V744H647"/>
+<text class="note copy" x="520" y="665" text-anchor="middle">WAL · три региона</text>
+<g id="local-standby">
+<rect class="box data" x="680" y="767" width="195" height="57" rx="9"/>
+<text class="label" x="777.5" y="791.5" text-anchor="middle">Sync-реплика</text>
+<text class="detail" x="777.5" y="809.5" text-anchor="middle">Для каждой группы</text>
+</g>
+<path class="edge copy" d="M763 729V767"/>
+<path class="edge copy" d="M887 744V788H875"/>
+<g id="planner">
+<rect class="box app" x="902" y="855" width="135" height="54" rx="9"/>
+<text class="label" x="969.5" y="878" text-anchor="middle" style="font-size:18px">Планировщик</text>
+<text class="detail" x="969.5" y="896" text-anchor="middle">2 экземпляра</text>
+</g>
+<g id="delivery-worker">
+<rect class="box app" x="1054" y="855" width="137" height="54" rx="9"/>
+<text class="label" x="1122.5" y="887" text-anchor="middle" style="font-size:18px">Воркер писем</text>
+</g>
+<g id="access-worker">
+<rect class="box app" x="1210" y="855" width="177" height="54" rx="9"/>
+<text class="label" x="1298.5" y="887" text-anchor="middle">Воркер доступа</text>
+</g>
+<path class="edge job" d="M910 855V756"/>
+<path class="edge job" d="M1056 756V855"/>
+<path class="edge job" d="M1189 855V756"/>
+<path class="edge job" d="M1215 756V855"/>
+<path class="edge job" d="M1382 855V756"/>
+<text class="note job" x="969" y="801" text-anchor="middle">Создаёт</text>
+<text class="note job" x="969" y="821" text-anchor="middle">задания</text>
+<text class="note job" x="1123" y="788" text-anchor="middle">Берёт задания</text>
+<text class="note job" x="1123" y="808" text-anchor="middle">и сохраняет</text>
+<text class="note job" x="1123" y="828" text-anchor="middle">результат</text>
+<text class="note job" x="1298" y="788" text-anchor="middle">Обновляет</text>
+<text class="note job" x="1298" y="808" text-anchor="middle">каталог</text>
+<text class="note job" x="1298" y="828" text-anchor="middle">календарей</text>
+<g id="pgbackrest">
+<rect class="box external" x="680" y="855" width="195" height="54" rx="9"/>
+<text class="label" x="777.5" y="878" text-anchor="middle">pgBackRest</text>
+<text class="detail" x="777.5" y="896" text-anchor="middle">Копии и архив WAL</text>
+</g>
+<path class="edge copy" d="M777 824V855"/>
+<path class="edge copy" d="M680 692H668V882H680"/>
+<g id="s3">
+<rect class="box external" x="680" y="971" width="195" height="61" rx="9"/>
+<text class="label" x="777.5" y="997.5" text-anchor="middle">S3</text>
+<text class="detail" x="777.5" y="1015.5" text-anchor="middle">PITR · 30 дней</text>
+</g>
+<path class="edge copy" d="M777 909V971"/>
+<g id="ses">
+<rect class="box external" x="1054" y="971" width="240" height="61" rx="9"/>
+<text class="label" x="1174" y="997.5" text-anchor="middle">Amazon SES</text>
+<text class="detail" x="1174" y="1015.5" text-anchor="middle">Приглашения · письма</text>
+</g>
+<path class="edge job" d="M1122 909V971"/>
+<text class="note job" x="1136" y="944" text-anchor="start">SendEmail</text>
+<text class="heading" x="44" y="788" text-anchor="start">Типы связей</text>
+<path class="edge client" d="M45 821H112"/>
+<text class="detail" x="126" y="827" text-anchor="start">Клиентский трафик и DNS</text>
+<path class="edge internal" d="M45 856H112"/>
+<text class="detail" x="126" y="862" text-anchor="start">Внутренние запросы</text>
+<path class="edge job" d="M45 891H112"/>
+<text class="detail" x="126" y="897" text-anchor="start">Фоновые задания и отправка</text>
+<path class="edge copy" d="M45 926H112"/>
+<text class="detail" x="126" y="932" text-anchor="start">Репликация и резервные копии</text>
+<text class="band-title" x="45" y="714">Региональные хранилища</text>
+<text class="band-title" x="884" y="550">Данные и фоновые процессы</text>
+<g id="route-1"><circle class="badge" cx="270" cy="73" r="14" fill="#1d6199"/><text class="index" x="270" y="79" text-anchor="middle">1</text></g>
+<g id="route-2"><circle class="badge" cx="533" cy="353" r="14" fill="#1d6199"/><text class="index" x="533" y="359" text-anchor="middle">2</text></g>
+<g id="route-3"><circle class="badge" cx="441" cy="231" r="14" fill="#15665a"/><text class="index" x="441" y="237" text-anchor="middle">3</text></g>
+<g id="route-4"><circle class="badge" cx="621" cy="466" r="14" fill="#15665a"/><text class="index" x="621" y="472" text-anchor="middle">4</text></g>
+<g id="route-5"><circle class="badge" cx="379" cy="430" r="14" fill="#15665a"/><text class="index" x="379" y="436" text-anchor="middle">5</text></g>
+<g id="route-6"><circle class="badge" cx="569" cy="430" r="14" fill="#15665a"/><text class="index" x="569" y="436" text-anchor="middle">6</text></g>
+<g id="route-7"><circle class="badge" cx="1400" cy="865" r="14" fill="#86501c"/><text class="index" x="1400" y="871" text-anchor="middle">7</text></g>
+<g id="route-8"><circle class="badge" cx="1098" cy="945" r="14" fill="#86501c"/><text class="index" x="1098" y="951" text-anchor="middle">8</text></g>
+<g id="route-9"><circle class="badge" cx="414" cy="672" r="14" fill="#6d469b"/><text class="index" x="414" y="678" text-anchor="middle">9</text></g>
+</svg>
